@@ -95,8 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Модальное окно
 
     const modalTrigger = document.querySelectorAll('[data-modal]'),
-        modal = document.querySelector('.modal'),
-        modalCloseBtn = document.querySelector('[data-close]');
+        modal = document.querySelector('.modal');
 
     modalTrigger.forEach(btn => {
         btn.addEventListener('click', openModal);
@@ -115,10 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.overflow = ''; //восстанавливаем скролл при закрытии окна
     }
 
-    modalCloseBtn.addEventListener('click', closeModal);
-
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
+        if (e.target === modal || e.target.getAttribute('data-close') == '') {      // метод для делегирования событый для закрытия модального окна на крестик, чтоб закрывал динамически созданный крест
             closeModal();
         }
     });
@@ -129,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    //const modalTimerId = setTimeout(openModal, 5000);
+    const modalTimerId = setTimeout(openModal, 50000);
 
     function showModalByScroll() {
         if (window.pageYOffset + document.documentElement.clientHeight >= document.documentElement.scrollHeight) { // проверка что пользователь прокрутил страницу до конца
@@ -209,4 +206,86 @@ document.addEventListener('DOMContentLoaded', () => {
         14,
         '.menu .container'
     ).render();
+
+    // Forms
+
+    const forms = document.querySelectorAll('form');
+
+    const message = {
+        loading: 'img/form/spinner.svg',
+        sucsess: 'Well Done, we call back you',
+        fail: 'ERROR'
+    }
+
+    forms.forEach(item => {     // метод для передачи данных на каждую форму, их 2 на сайте
+        postData(item);
+    });
+
+    function postData(form) {   // функция для формирования и передачи данных на сервер
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();     // для отмены перезагрузки страницы при отправки, должна стоять в начале
+
+            const statusMessage = document.createElement('img');     // добавляем картинку спиннер при загрузке отправления формы
+            statusMessage.src = message.loading;
+            statusMessage.style.cssText = `     
+                display: block;
+                margin: 0 auto;
+            `;  // добавляем стили картинке
+            // form.append(statusMessage);
+            form.insertAdjacentElement('afterend', statusMessage);
+
+            const request = new XMLHttpRequest();
+            request.open('POST', 'server.php');
+
+            request.setRequestHeader('Content-type', 'application/json'); //это заголовки для метода POST в этом формате они не нужны!!! но нужно для формата JSON!
+            const formData = new FormData(form);    // метод для формирования введеных данных на сервер(в ипуте на штмл обязательно должно быть прописано нейм!!)
+
+            const object = {};
+            formData.forEach(function(value, key){  // метод для перебора данных из form data в обычный объект для JSONа
+                object[key] = value;
+            });
+
+            const json = JSON.stringify(object);
+
+            request.send(json);     // метод для отправки данных на сервер в формате JSON
+
+            //request.send(formData);     //метод для отправки данных на сервер в формате formData
+
+            request.addEventListener('load', () => {
+                if (request.status === 200) {
+                    console.log(request.response);
+                    showThanksModal(message.sucsess);
+                    form.reset();   // метод для сброса заполненной формы
+                    statusMessage.remove();
+                } else {
+                    showThanksModal(message.fail);
+                }
+            });
+        });
+    } 
+
+    function showThanksModal(message) {
+        const prevModalDialog = document.querySelector('.modal__dialog');
+
+        prevModalDialog.classList.add('hide');
+        openModal();       // ф-ия отвечающая за открытие модальных окон
+
+        const thanksModal = document.createElement('div');
+        thanksModal.classList.add('modal__dialog');
+        thanksModal.innerHTML = `
+            <div class="modal__content">
+            <div class="modal__close" data-close>×</div>
+            <div class="modal__title">${message}</div>
+            </div>
+        `;
+
+        document.querySelector('.modal').append(thanksModal);    // добавляем новое модальное окно на страницу
+
+        setTimeout(() => {      // убираем новое модальное окно и заменяем его старым
+            thanksModal.remove();
+            prevModalDialog.classList.add('show');
+            prevModalDialog.classList.remove('hide');
+            closeModal()
+        }, 4000);
+    }
 });
