@@ -1,0 +1,14 @@
+{
+  "name": "food-dist",
+  "version": "1.0.0",
+  "description": "delivery market",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dmitry Goncharov",
+  "license": "ISC",
+  "devDependencies": {
+    "json-server": "^0.16.3"
+  }
+}

@@ -180,32 +180,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    new MenuCard(
-        "img/tabs/vegy.jpg",
-        "vegy",
-        'Меню "Фитнес"',
-        'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
-        9,
-        '.menu .container'
-    ).render();
+    const getData = async (url) => {       // асинхронная ф-ия которая получае данные из базы данных 
+        const res = await fetch(url);
 
-    new MenuCard(
-        "img/tabs/elite.jpg",
-        "elite",
-        'Меню “Премиум”',
-        'В меню “Премиум” мы используем не только красивый дизайн упаковки, но и качественное исполнение блюд. Красная рыба, морепродукты, фрукты - ресторанное меню без похода в ресторан!',
-        21,
-        '.menu .container'
-    ).render();
+        if (!res.ok) {          // условие, если придет ошибка от сервера
+            throw new Error(`could not fetch ${url}, status : ${res.status}`);      // trhrow чтоб выкинуть ошибку
+        }
 
-    new MenuCard(
-        "img/tabs/post.jpg",
-        "post",
-        'Меню "Постное"',
-        'Меню “Постное” - это тщательный подбор ингредиентов: полное отсутствие продуктов животного происхождения, молоко из миндаля, овса, кокоса или гречки, правильное количество белков за счет тофу и импортных вегетарианских стейков.',
-        14,
-        '.menu .container'
-    ).render();
+        return await res.json();
+    };
+
+    getData(`http://localhost:3000/menu`)       // получаем карточки из базы данных
+        .then(data => {
+            data.forEach(({img, altimg, title, descr, price}) => {       // получаем объект карточки из базы данных
+                new MenuCard(img, altimg, title, descr, price, '.menu .container').render();        // создаем конструктор для каждой карточки
+            });
+        });
+    
+    // axios.get(`http://localhost:3000/menu`)     // используем axios вместо fetch
+    //     .then(data => {
+    //         data.data.forEach(({img, altimg, title, descr, price}) => {       // получаем объект карточки из базы данных
+    //             new MenuCard(img, altimg, title, descr, price, '.menu .container').render();        // создаем конструктор для каждой карточки
+    //         });
+    //     });
 
     // Forms
 
@@ -218,10 +215,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     forms.forEach(item => {     // метод для передачи данных на каждую форму, их 2 на сайте
-        postData(item);
+        bindPostData(item);
     });
 
-    function postData(form) {   // функция для формирования и передачи данных на сервер
+    const postData = async (url, data) => {       // асинхронная ф-ия которая обрабатывает запрос 
+        const res = await fetch(url, {      // await для того чтоб подождать ответ от сервера
+            method: "POST",
+            headers: {
+                'Content-type': 'application/json'
+            },
+            body: data
+        });
+
+        return await res.json();
+    };
+
+    function bindPostData(form) {   // функция для формирования и передачи данных на сервер
         form.addEventListener('submit', (e) => {
             e.preventDefault();     // для отмены перезагрузки страницы при отправки, должна стоять в начале
 
@@ -234,33 +243,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // form.append(statusMessage);
             form.insertAdjacentElement('afterend', statusMessage);
 
-            const request = new XMLHttpRequest();
-            request.open('POST', 'server.php');
-
-            request.setRequestHeader('Content-type', 'application/json'); //это заголовки для метода POST в этом формате они не нужны!!! но нужно для формата JSON!
+            // request.setRequestHeader('Content-type', 'application/json'); //это заголовки для метода POST в этом формате они не нужны!!! но нужно для формата JSON!
             const formData = new FormData(form);    // метод для формирования введеных данных на сервер(в ипуте на штмл обязательно должно быть прописано нейм!!)
 
-            const object = {};
-            formData.forEach(function(value, key){  // метод для перебора данных из form data в обычный объект для JSONа
-                object[key] = value;
-            });
+            const json = JSON.stringify(Object.fromEntries(formData.entries()));
 
-            const json = JSON.stringify(object);
-
-            request.send(json);     // метод для отправки данных на сервер в формате JSON
-
-            //request.send(formData);     //метод для отправки данных на сервер в формате formData
-
-            request.addEventListener('load', () => {
-                if (request.status === 200) {
-                    console.log(request.response);
-                    showThanksModal(message.sucsess);
-                    form.reset();   // метод для сброса заполненной формы
-                    statusMessage.remove();
-                } else {
-                    showThanksModal(message.fail);
-                }
-            });
+            postData('http://localhost:3000/requests', json)
+            .then(data => {
+                console.log(data);
+                showThanksModal(message.sucsess);
+                statusMessage.remove();
+            }).catch(() => {
+                showThanksModal(message.fail);
+            }).finally(() => {
+                form.reset();   // метод для сброса заполненной формы
+            })
         });
     } 
 
@@ -288,4 +285,168 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal()
         }, 4000);
     }
+
+    // Fetch API
+
+    // fetch('https://jsonplaceholder.typicode.com/posts', {     // метод который получает данные с сервера(get запрос) / отправляет данные на сервер
+    //     method: "POST",         // настройка для отправки данных на сервер(POST)
+    //     body: JSON.stringify({name: 'Alex'}),        // отправка объекта в формате JSON
+    //     headers: {                              // прописываем заголовки для отправки
+    //         'Content-type': 'application/json'
+    //     }
+    // })   
+    // .then(response => response.json())  // метод который переводит json формат в js объект(промис)
+    // .then(json => console.log(json));
+
+    // fetch('http://localhost:3000/menu')
+    //     .then(data => data.json())
+    //     .then(res => console.log(res));
+
+    // SLIDER
+
+    const sliders = document.querySelectorAll('.offer__slide'),
+          slider = document.querySelector('.offer__slider'),
+          sliderNext = document.querySelector('.offer__slider-next'),
+          sliderPrev = document.querySelector('.offer__slider-prev'),
+          total = document.querySelector('#total'),
+          current = document.querySelector('#current'),
+          sliderWrapper = document.querySelector('.offer__slider-wrapper'),
+          sliderField = document.querySelector('.offer__slider-inner'),
+          width = window.getComputedStyle(sliderWrapper).width; // получаем ширину окна слайдов
+    
+    let slideIndex = 1;
+    let offset = 0;
+
+    if (sliders.length < 10) {
+        total.textContent = `0${sliders.length}`;
+        current.textContent = `0${slideIndex}`;
+    } else {
+        total.textContent = sliders.length;
+        current.textContent = slideIndex;
+    }
+
+    sliderField.style.width = 100 * sliders.length + '%';   // помещаем все слайды на страницу и определяем их ширину 100%
+
+    sliderField.style.display = 'flex';
+    sliderField.style.transition = '0.5s all';
+
+    sliderWrapper.style.overflow = 'hidden';
+
+    sliders.forEach(slide => {
+        slide.style.width = width;      // добавляем каждому слайду одинаковую ширину
+    });
+
+    slider.style.position = 'relative';
+
+    const indicators = document.createElement('ol'),    // создаем точки для слайдов
+          dots = [];
+    indicators.classList.add('carousel-indicators');
+    indicators.style.cssText = `
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 15;
+        display: flex;
+        justify-content: center;
+        margin-right: 15%;
+        margin-left: 15%;
+        list-style: none;
+    `;
+    slider.append(indicators);
+
+    for (let i = 0; i < sliders.length; i++) {
+        const dot = document.createElement('li');       // создаем точки для слайдов
+        dot.setAttribute('data-slide-to', i + 1);       // привязываем слайды к своим точкам
+        dot.style.cssText = `
+            box-sizing: content-box;
+            flex: 0 1 auto;
+            width: 30px;
+            height: 6px;
+            margin-right: 3px;
+            margin-left: 3px;
+            cursor: pointer;
+            background-color: #fff;
+            background-clip: padding-box;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            opacity: .5;
+            transition: opacity .6s ease;
+        `;
+        if (i == 0) {
+            dot.style.opacity = 1;
+        }
+        indicators.append(dot);
+        dots.push(dot);
+    }
+
+    sliderNext.addEventListener('click', () => {
+        if (offset == +width.slice(0, width.length - 2) * (sliders.length - 1)) {    // проверка, если долистали до конца возвращаем на первый слайд; slice - для того чтоб из строки с px превратить в число
+            offset = 0;
+        } else {
+            offset += +width.slice(0, width.length - 2);     // перелистываем на следующий слайд при клике на слайдер
+        }
+
+        sliderField.style.transform = `translateX(-${offset}px)`;       // смещаем слайды при клике на слайдер влево
+
+        if (slideIndex == sliders.length) {
+            slideIndex = 1;
+        } else {
+            slideIndex++;
+        }
+
+        if (sliders.length < 10) {
+            current.textContent = `0${slideIndex}`;
+        } else {
+            current.textContent = slideIndex;
+        }
+
+        dots.forEach(dot => dot.style.opacity = '.5');      // добавляем не выбранные точки прозрачные
+        dots[slideIndex - 1].style.opacity = 1;         // добавляем выбранную активную точку
+    });
+
+    sliderPrev.addEventListener('click', () => {
+        if (offset == 0) {    // проверка, если долистали до начала, возвращаем на последний слайд; slice - для того чтоб из строки с px превратить в число
+            offset = +width.slice(0, width.length - 2) * (sliders.length - 1);
+        } else {
+            offset -= +width.slice(0, width.length - 2);     // перелистываем на предидущий слайд при клике на слайдер
+        }
+
+        sliderField.style.transform = `translateX(-${offset}px)`;       // смещаем слайды при клике на слайдер влево
+
+        if (slideIndex == 1) {
+            slideIndex = sliders.length;
+        } else {
+            slideIndex--;
+        }
+
+        if (sliders.length < 10) {
+            current.textContent = `0${slideIndex}`;
+        } else {
+            current.textContent = slideIndex;
+        }
+
+        dots.forEach(dot => dot.style.opacity = '.5');      // добавляем не выбранные точки прозрачные
+        dots[slideIndex - 1].style.opacity = 1;         // добавляем выбранную активную точку
+    });
+
+    dots.forEach(dot => {                           // добавляем переключение слайдов точкам
+        dot.addEventListener('click', (e) => {
+            const slideTo = e.target.getAttribute('data-slide-to');
+
+            slideIndex = slideTo;
+            offset = +width.slice(0, width.length - 2) * (slideTo - 1);
+
+            sliderField.style.transform = `translateX(-${offset}px)`;
+
+            if (sliders.length < 10) {
+                current.textContent = `0${slideIndex}`;
+            } else {
+                current.textContent = slideIndex;
+            }
+
+            dots.forEach(dot => dot.style.opacity = '.5');      
+            dots[slideIndex - 1].style.opacity = 1;   
+        });
+    });
 });
